@@ -1,0 +1,8 @@
+# ห้ามนำข้อมูลการเงินหรือรหัสขึ้น git
+*.xlsx
+*.csv
+*.pdf
+samples/
+secrets*
+.env
+web/_local/

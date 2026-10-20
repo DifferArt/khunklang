@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "khunklang",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "E:/KhunKlang/tools/serve.ps1"],
+      "port": 8787
+    }
+  ]
+}

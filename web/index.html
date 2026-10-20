@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ขุนคลัง</title>
+  <meta name="description" content="บันทึกรายรับ-รายจ่าย หลายบัญชี หลายช่องทางรายได้ เชื่อม Google Sheets">
+  <meta name="theme-color" content="#14532d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"><span>ขุนคลัง</span></div>
+    <button id="syncPill" class="pill" type="button"></button>
+  </header>
+
+  <main>
+    <!-- หน้าหลัก -->
+    <section id="view-home" class="view">
+      <div class="month-title" id="homeMonth"></div>
+      <div class="card summary">
+        <div class="sum-row">
+          <div><span class="lbl">รายรับจริง</span><b id="sumIncome" class="pos"></b></div>
+          <div><span class="lbl">รายจ่ายจริง</span><b id="sumExpense" class="neg"></b></div>
+        </div>
+        <div class="sum-net"><span class="lbl">คงเหลือเดือนนี้</span><b id="sumNet"></b></div>
+        <div class="hint" id="sumTransfer"></div>
+      </div>
+
+      <h2 class="sec">บันทึกด่วน</h2>
+      <div id="favGrid" class="fav-grid"></div>
+
+      <h2 class="sec">รายจ่ายตามหมวด</h2>
+      <div id="groupBars" class="card bars"></div>
+
+      <h2 class="sec">ล่าสุด <button class="link" data-goto="list" type="button">ดูทั้งหมด</button></h2>
+      <div id="recentList" class="tx-list"></div>
+    </section>
+
+    <!-- รายการ -->
+    <section id="view-list" class="view" hidden>
+      <div class="month-nav">
+        <button id="prevMonth" class="icon-btn" type="button" aria-label="เดือนก่อน">‹</button>
+        <div id="listMonth" class="month-title"></div>
+        <button id="nextMonth" class="icon-btn" type="button" aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div class="filters">
+        <div class="chips" id="typeChips">
+          <button class="chip on" data-type="" type="button">ทั้งหมด</button>
+          <button class="chip" data-type="income" type="button">รายรับ</button>
+          <button class="chip" data-type="expense" type="button">รายจ่าย</button>
+          <button class="chip" data-type="transfer" type="button">โอน</button>
+          <button class="chip" data-type="unknown" type="button">❓ รอตรวจ</button>
+        </div>
+        <select id="accFilter" aria-label="กรองตามบัญชี"></select>
+      </div>
+      <div id="listSummary" class="list-summary"></div>
+      <div id="txList" class="tx-list"></div>
+    </section>
+
+    <!-- บัญชี -->
+    <section id="view-accounts" class="view" hidden>
+      <div class="card summary">
+        <div class="sum-row">
+          <div><span class="lbl">สินทรัพย์</span><b id="nwAssets" class="pos"></b></div>
+          <div><span class="lbl">หนี้สิน</span><b id="nwDebts" class="neg"></b></div>
+        </div>
+        <div class="sum-net"><span class="lbl">ความมั่งคั่งสุทธิ</span><b id="nwNet"></b></div>
+        <div class="hint" id="nwHint"></div>
+      </div>
+      <button type="button" class="btn import-btn" data-import>📥 นำเข้า Statement ธนาคาร (PDF)</button>
+      <div id="accGroups"></div>
+    </section>
+
+    <!-- นำเข้า Statement -->
+    <section id="view-import" class="view" hidden>
+      <div class="month-nav">
+        <button type="button" class="icon-btn" data-goto="accounts" aria-label="กลับ">‹</button>
+        <div class="month-title">นำเข้า Statement</div>
+        <span style="width:38px"></span>
+      </div>
+      <p class="imp-status" id="impStatus" hidden></p>
+      <div id="impBody"></div>
+    </section>
+
+    <!-- ตั้งค่า -->
+    <section id="view-settings" class="view" hidden>
+      <div class="card form-card">
+        <h2 class="sec">การเชื่อมต่อ</h2>
+        <label class="row-check"><input type="checkbox" id="cfgDemo"> โหมดทดลอง (เก็บในเครื่องนี้เท่านั้น)</label>
+        <label>Web app URL<input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"></label>
+        <label>รหัส API<input id="cfgKey" type="password" autocomplete="off" placeholder="จากเมนู ขุนคลัง → แสดงรหัส API"></label>
+        <div class="btn-row">
+          <button id="cfgSave" class="btn primary" type="button">บันทึกและทดสอบ</button>
+        </div>
+        <p class="hint" id="cfgStatus"></p>
+      </div>
+      <div class="card form-card">
+        <h2 class="sec">อัตราแลกเปลี่ยน</h2>
+        <label>1 USD = ? บาท (ใช้สรุปยอดรวม)<input id="cfgRate" type="number" step="0.01" inputmode="decimal"></label>
+        <div class="btn-row"><button id="rateSave" class="btn" type="button">บันทึกอัตรา</button></div>
+      </div>
+      <div class="card form-card">
+        <h2 class="sec">ข้อมูลย้อนหลัง</h2>
+        <button type="button" class="btn" data-import>📥 นำเข้า Statement ธนาคาร (PDF)</button>
+      </div>
+      <div class="card form-card" id="demoTools">
+        <h2 class="sec">ข้อมูลทดลอง</h2>
+        <p class="hint">ล้างข้อมูลโหมดทดลองแล้วเริ่มจากตัวอย่างใหม่</p>
+        <div class="btn-row"><button id="demoReset" class="btn danger" type="button">ล้างข้อมูลทดลอง</button></div>
+      </div>
+      <p class="hint center">ขุนคลัง เฟส 1 · แก้บัญชี/หมวด/ปุ่มลัดได้ใน Google Sheet</p>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-goto="home" class="on" type="button"><span>🏠</span>หน้าหลัก</button>
+    <button data-goto="list" type="button"><span>📋</span>รายการ</button>
+    <button id="addBtn" class="add" type="button" aria-label="บันทึกรายการ">＋</button>
+    <button data-goto="accounts" type="button"><span>🏦</span>บัญชี</button>
+    <button data-goto="settings" type="button"><span>⚙️</span>ตั้งค่า</button>
+  </nav>
+
+  <!-- ฟอร์มบันทึก -->
+  <div id="sheet" class="sheet" hidden>
+    <form id="txForm" class="sheet-body" autocomplete="off">
+      <div class="sheet-head">
+        <button type="button" class="icon-btn" id="sheetClose" aria-label="ปิด">✕</button>
+        <b id="sheetTitle">บันทึกรายการ</b>
+        <span></span>
+      </div>
+
+      <div class="seg" id="typeSeg">
+        <button type="button" data-type="expense" class="on">รายจ่าย</button>
+        <button type="button" data-type="income">รายรับ</button>
+        <button type="button" data-type="transfer">โอนย้าย</button>
+      </div>
+
+      <div class="amount-box">
+        <span id="amtCur">฿</span>
+        <input id="fAmount" type="text" inputmode="decimal" placeholder="0" required>
+      </div>
+
+      <label id="catWrap">หมวด<select id="fCategory"></select></label>
+      <label><span id="accLabel">บัญชี</span><select id="fAccount"></select></label>
+      <div id="transferWrap" hidden>
+        <label>ไปบัญชี<select id="fToAccount"></select></label>
+        <label id="toAmtWrap" hidden><span id="toAmtLabel">ยอดที่เข้าปลายทาง</span>
+          <input id="fToAmount" type="text" inputmode="decimal" placeholder="0">
+        </label>
+      </div>
+      <label>บ้าน/รถ (ไม่บังคับ)<select id="fAsset"></select></label>
+
+      <label>วันที่
+        <div class="date-row">
+          <input id="fDate" type="date" required>
+          <button type="button" class="chip" data-day="0">วันนี้</button>
+          <button type="button" class="chip" data-day="-1">เมื่อวาน</button>
+        </div>
+      </label>
+      <label><span id="cpLabel">ชื่อผู้จ่าย / ผู้รับ (ไม่บังคับ)</span><input id="fCounterparty" type="text" list="cpList" placeholder="พิมพ์แล้วเลือกจากชื่อที่เคยใช้"></label>
+      <datalist id="cpList"></datalist>
+      <label>บันทึกช่วยจำ<input id="fNote" type="text" placeholder="เช่น รายละเอียดเพิ่มเติม"></label>
+
+      <p class="form-error" id="formError" hidden></p>
+      <div class="btn-row sticky">
+        <button type="button" class="btn danger" id="fDelete" hidden>ลบ</button>
+        <button type="submit" class="btn primary grow" id="fSubmit">บันทึก</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- แก้ไข / เพิ่มบัญชี -->
+  <div id="accSheet" class="sheet" hidden>
+    <form id="accForm" class="sheet-body" autocomplete="off">
+      <div class="sheet-head">
+        <button type="button" class="icon-btn" id="accClose" aria-label="ปิด">✕</button>
+        <b id="accTitle">แก้ไขบัญชี</b>
+        <span></span>
+      </div>
+      <label>ชื่อบัญชี<input id="aName" type="text" placeholder="เช่น กรุงไทย, กสิกร · ใช้จ่าย" required></label>
+      <label>เลขท้าย 4 หลัก (บัญชี หรือ บัตร)<input id="aLast4" type="text" inputmode="numeric" maxlength="4" placeholder="เช่น 1234"></label>
+      <div id="aNewOnly">
+        <label>ประเภท<select id="aKind"></select></label>
+        <label>สกุลเงิน<select id="aCurrency"><option value="THB">บาท (THB)</option><option value="USD">ดอลลาร์ (USD)</option></select></label>
+      </div>
+      <label>ยอดยกมา <span class="hint" id="aOpeningHint"></span><input id="aOpening" type="text" inputmode="decimal" placeholder="0"></label>
+      <label>ไอคอน (อีโมจิ)<input id="aIcon" type="text" maxlength="4" placeholder="เช่น 🏦"></label>
+      <label class="row-check" id="aHideWrap"><input type="checkbox" id="aHidden"> ซ่อนบัญชีนี้ (ไม่ใช้แล้ว — ข้อมูลเดิมยังอยู่)</label>
+      <p class="hint" id="aInfo"></p>
+      <p class="form-error" id="aError" hidden></p>
+      <div class="btn-row sticky">
+        <button type="submit" class="btn primary grow" id="aSubmit">บันทึก</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="seed.js"></script>
+  <script src="core.js"></script>
+  <script src="mock-api.js"></script>
+  <script src="api.js"></script>
+  <script src="importer.js"></script>
+  <script src="accounts.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
