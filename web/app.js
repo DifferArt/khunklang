@@ -148,6 +148,11 @@ var App = {
     document.querySelectorAll('[data-import]').forEach(function (b) {
       b.addEventListener('click', function () { Importer.open(); });
     });
+    document.querySelectorAll('[data-export]').forEach(function (b) {
+      b.addEventListener('click', function () { Exporter.open(); });
+    });
+    Attach.bind();
+    Exporter.bind();
     $('syncPill').addEventListener('click', function () { App.refresh(); });
 
     $('prevMonth').addEventListener('click', function () { App.changeListMonth(-1); });
@@ -199,7 +204,7 @@ var App = {
 
   go: function (view) {
     App.view = view;
-    ['home', 'list', 'accounts', 'settings', 'import'].forEach(function (v) { $('view-' + v).hidden = v !== view; });
+    ['home', 'list', 'accounts', 'settings', 'import', 'export'].forEach(function (v) { $('view-' + v).hidden = v !== view; });
     document.querySelectorAll('.tabbar [data-goto]').forEach(function (b) { b.classList.toggle('on', b.dataset.goto === view); });
     if (view === 'settings') App.renderSettings();
     if (view === 'list' && !App.monthTxs[App.listMonth]) App.loadMonth(App.listMonth);
@@ -358,7 +363,7 @@ var App = {
     if (t._pending) extra += '<small>⏳ รอส่ง</small>';
     return '<button type="button" class="tx' + (t._pending ? ' pending' : '') + '" data-tx="' + App.esc(t.id) + '">' +
       '<span class="ico">' + App.esc(icon) + '</span>' +
-      '<span class="main"><div class="t1">' + App.esc(title) + '</div><div class="t2">' + App.esc(sub) + '</div></span>' +
+      '<span class="main"><div class="t1">' + App.esc(title) + (t.slip_ref ? ' <span class="clip" title="มีไฟล์แนบ">📎</span>' : '') + '</div><div class="t2">' + App.esc(sub) + '</div></span>' +
       '<span class="amt ' + cls + '">' + sign + App.money(t.amount, a.currency) + extra + '</span></button>';
   },
 
@@ -519,6 +524,7 @@ var App = {
     $('fCounterparty').value = tx ? tx.counterparty || '' : '';
     App.fillCounterparties();
     App.setFormType(type);
+    Attach.reset(tx);
     App.updateCpLabel();
     $('sheetTitle').textContent = tx ? 'แก้ไขรายการ' : (fav ? (fav.icon || '') + ' ' + fav.label : 'บันทึกรายการ');
     $('fDelete').hidden = !tx;
@@ -574,12 +580,14 @@ var App = {
     tx = KK.normalizeTx(tx, accs);
 
     var old = App.editing ? Object.assign({}, App.editing) : null;
+    var files = Attach.take();
     App.applyLocal(old, tx);
     Outbox.push({ kind: 'save', id: tx.id, tx: tx });
     App.closeForm();
     App.renderAll();
-    App.toast(old ? 'แก้ไขแล้ว' : 'บันทึกแล้ว ' + App.money(tx.amount, (accs[tx.account_id] || {}).currency));
-    App.pushNow();
+    App.toast(old ? 'แก้ไขแล้ว' : 'บันทึกแล้ว ' + App.money(tx.amount, (accs[tx.account_id] || {}).currency) +
+      (files.length ? ' · กำลังแนบไฟล์…' : ''));
+    App.pushNow(files.length ? function () { return Attach.upload(files, tx); } : null);
   },
 
   deleteEditing: function () {
@@ -609,14 +617,18 @@ var App = {
     App.writeCache();
   },
 
-  pushNow: function () {
+  /** after = งานที่ทำต่อหลังส่งรายการ (เช่น อัปโหลดไฟล์แนบ) ก่อนขอยอดใหม่ */
+  pushNow: function (after) {
     Outbox.flush().then(function () {
+      return after ? after() : null;
+    }).then(function () {
       App.renderSyncPill();
       // ขอยอดจริงจากเซิร์ฟเวอร์อีกครั้ง เพื่อให้ตรงกับชีต
       if (!Outbox.list().length) {
         Api.call('bootstrap', { month: App.homeMonth }).then(function (res) {
           App.monthTxs[App.homeMonth] = res.txs; delete res.txs;
           App.data = res; App.writeCache(); App.renderAll();
+          if (App.view === 'export') Exporter.load();
         }).catch(function () { /* ใช้ข้อมูลในเครื่องต่อไป */ });
       }
     });

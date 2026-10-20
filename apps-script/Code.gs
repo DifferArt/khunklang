@@ -1,6 +1,6 @@
 /*
  * ขุนคลัง — Apps Script (ตัวกลางระหว่างเว็บแอปกับ Google Sheet)
- * ต้องวางคู่กับ Core.gs และ Seed.gs (คัดลอกมาจาก web/core.js และ web/seed.js)
+ * ต้องวางคู่กับ Core.gs และ Seed.gs (คัดลอกมาจาก web/core.js และ web/seed.js) และ Drive.gs (ไฟล์แนบ + ส่งบัญชี)
  */
 var KK_TZ = 'Asia/Bangkok';
 
@@ -13,7 +13,8 @@ function kkDefs_() {
     favorites: { name: 'Favorites', fields: ['id', 'label', 'icon', 'type', 'account_id', 'to_account_id', 'category_id', 'asset_id', 'amount', 'sort', 'active'] },
     transactions: { name: 'Transactions', fields: KK.TX_FIELDS_V1.concat(['account_label', 'to_account_label', 'category_label', 'asset_label'], KK.TX_FIELDS_V2) },
     settings: { name: 'Settings', fields: ['key', 'value'] },
-    rules: { name: 'Rules', fields: ['id', 'pattern', 'type', 'category_id', 'other_account_id', 'asset_id', 'sort', 'active', 'amount'] }
+    rules: { name: 'Rules', fields: ['id', 'pattern', 'type', 'category_id', 'other_account_id', 'asset_id', 'sort', 'active', 'amount'] },
+    files: { name: 'Files', fields: ['id', 'tx_id', 'kind', 'account_id', 'date_from', 'date_to', 'name', 'mime', 'drive_id', 'size', 'created_at', 'deleted'] }
   };
 }
 
@@ -23,6 +24,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('ขุนคลัง')
     .addItem('1) ตั้งค่าเริ่มต้น (สร้างชีต + ข้อมูลตั้งต้น)', 'setup')
     .addItem('2) แสดงรหัส API', 'showApiKey')
+    .addItem('3) เปิดสิทธิ์ Google Drive (สลิป / ส่งบัญชี)', 'authorizeDrive')
     .addItem('สร้างรหัส API ใหม่', 'resetApiKey')
     .addSeparator()
     .addItem('เรียงชีต Transactions ตามวันที่', 'sortTransactions')
@@ -150,6 +152,11 @@ function kkHandle_(action, p) {
     case 'updateAccounts': return kkWithLock_(function () { return kkUpdateAccounts_(p.updates || []); });
     case 'addAccount': return kkWithLock_(function () { return kkAddAccount_(p.account); });
     case 'saveCategories': return kkWithLock_(function () { return kkSaveCategories_(p.categories || []); });
+    case 'uploadFile': return kkWithLock_(function () { return kkUploadFile_(p.file); });
+    case 'listFiles': return kkListFiles_(p);
+    case 'getFile': return kkGetFile_(p.id);
+    case 'deleteFile': return kkWithLock_(function () { return kkDeleteFile_(p.id); });
+    case 'exportMonth': return kkExportMonth_(p);
     default: throw new Error('ไม่รู้จักคำสั่ง: ' + action);
   }
 }
@@ -168,12 +175,12 @@ function kkSheet_(key) {
   var def = kkDefs_()[key];
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(def.name);
-  if (!sh && key === 'rules') {
+  if (!sh && (key === 'rules' || key === 'files')) {
     // ชีตที่เพิ่มในรุ่นหลัง — สร้างให้เองโดยไม่ต้องรัน setup ใหม่
     sh = ss.insertSheet(def.name);
     kkWriteHeaders_(sh, def.fields);
     kkHeadersChecked_[key] = true;
-    kkSeedIfEmpty_(key, KK_SEED.rules, { active: true });
+    if (key === 'rules') kkSeedIfEmpty_(key, KK_SEED.rules, { active: true });
   }
   if (!sh) throw new Error('ไม่พบชีต ' + def.name + ' — กรุณารันเมนู ขุนคลัง → ตั้งค่าเริ่มต้น');
   if (!kkHeadersChecked_[key]) {
@@ -206,7 +213,7 @@ function kkRead_(key) {
 
 function kkCell_(field, v) {
   if (v instanceof Date) {
-    return field === 'date' ? Utilities.formatDate(v, KK_TZ, 'yyyy-MM-dd') : v.toISOString();
+    return /^date/.test(field) ? Utilities.formatDate(v, KK_TZ, 'yyyy-MM-dd') : v.toISOString();
   }
   return v;
 }
@@ -284,6 +291,7 @@ function kkSaveTx_(input) {
     tx.created_at = tx.created_at || now;
   }
   tx.updated_at = now;
+  tx.slip_ref = kkSlipRef_(tx.id); // ไฟล์แนบจัดการฝั่งเซิร์ฟเวอร์ (อาจอัปโหลดมาก่อนรายการถึง)
 
   var full = Object.assign({}, tx, KK.labels(tx, ctx.accountsById, ctx.categoriesById, ctx.assetsById));
   var values = [fields.map(function (f) { return f === 'date' ? kkDateCell_(full.date) : full[f]; })];

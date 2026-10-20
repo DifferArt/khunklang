@@ -1,6 +1,6 @@
 /*
  * ขุนคลัง — นำเข้า Statement ธนาคาร (PDF)
- * อ่าน PDF ในเบราว์เซอร์ด้วย pdf.js (ไฟล์ไม่ถูกส่งออกไปไหน) → จัดหมวด → ให้ตรวจ → บันทึกทีละชุด
+ * อ่าน PDF ในเบราว์เซอร์ด้วย pdf.js → จัดหมวด → ให้ตรวจ → บันทึกทีละชุด → เก็บไฟล์ PDF ใน Drive ของผู้ใช้
  */
 var Importer = {
   PDFJS: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/',
@@ -287,6 +287,7 @@ var Importer = {
       chain = chain.then(function () { return self.readPdf(f); }).then(function (pages) {
         var st = self.verifyChain(self.parse(pages));
         st.fileName = f.name;
+        st.file = f; // เก็บไว้ส่งขึ้น Drive หลังบันทึก (ใช้แนบตอนส่งบัญชี)
         if (st.empty || !st.rows.length) skipped.push(f.name + ' (ไม่มีรายการเดือนนี้)');
         else parsed.push(st);
       }).catch(function (e) {
@@ -483,6 +484,10 @@ var Importer = {
         return ' · แต่จำการแก้ไขไม่สำเร็จ (' + e.message + ')';
       });
     }).then(function (warn) {
+      return self.saveStatementFiles(acc).then(function () { return warn; }, function (e) {
+        return warn + ' · เก็บไฟล์ Statement ไม่สำเร็จ (' + e.message + ') — แนบเองได้ที่หน้า 📤 ส่งบัญชี';
+      });
+    }).then(function (warn) {
       self.setStatus('');
       App.toast('บันทึก ' + total.saved + ' รายการ' + (total.skipped ? ' · ข้ามที่ซ้ำ ' + total.skipped : '') +
         (total.errors.length ? ' · ผิดพลาด ' + total.errors.length : '') + warn, !!(total.errors.length || warn));
@@ -494,6 +499,20 @@ var Importer = {
         self.setStatus('');
         App.toast('บันทึกไม่สำเร็จ: ' + e.message + (total.saved ? ' (บันทึกไปแล้ว ' + total.saved + ' — กดบันทึกซ้ำได้ ระบบข้ามรายการซ้ำให้)' : ''), true);
       }).then(function () { self.busy = false; var b = $('impSave'); if (b) b.disabled = false; });
+  },
+
+  /** ส่งไฟล์ Statement PDF ขึ้น Drive (ใช้ประกอบชุดส่งบัญชี) */
+  saveStatementFiles: function (accountId) {
+    var self = this;
+    return self.statements.reduce(function (p, st, i) {
+      if (!st.file) return p;
+      var dates = st.rows.map(function (r) { return r.date; }).sort();
+      var from = st.from || dates[0], to = st.to || dates[dates.length - 1];
+      return p.then(function () {
+        self.setStatus('กำลังเก็บไฟล์ Statement ' + (i + 1) + ' / ' + self.statements.length + '…');
+        return Attach.uploadStatement(st.file, accountId, from, to);
+      });
+    }, Promise.resolve());
   },
 
   /** จำการแก้ไขเป็นกฎ + จำเลขท้ายบัญชี + ตั้งชื่อเจ้าของ */
@@ -583,7 +602,7 @@ var Importer = {
         '<div class="card form-card">' +
         '<p>เลือกไฟล์ Statement (PDF) — เลือกได้หลายเดือนพร้อมกัน</p>' +
         '<label class="btn primary file-btn">📄 เลือกไฟล์ PDF<input type="file" id="impFile" accept="application/pdf,.pdf" multiple hidden></label>' +
-        '<p class="hint">ไฟล์ถูกอ่านในเครื่องนี้เท่านั้น ไม่ถูกอัปโหลด · ถ้าไฟล์ติดรหัสผ่าน เปิดใน Chrome → Ctrl+P → บันทึกเป็น PDF ก่อน</p>' +
+        '<p class="hint">ไฟล์ถูกอ่านในเครื่องนี้ แล้วเก็บสำเนาไว้ใน Google Drive ของคุณเพื่อใช้ส่งบัญชี · ถ้าไฟล์ติดรหัสผ่าน เปิดใน Chrome → Ctrl+P → บันทึกเป็น PDF ก่อน</p>' +
         '<p class="hint">รองรับตอนนี้: ' + self.parsers.map(function (p) { return p.name; }).join(', ') + '</p>' +
         '</div>';
       $('impFile').addEventListener('change', function () { self.handleFiles(this.files); this.value = ''; });

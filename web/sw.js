@@ -1,7 +1,8 @@
 /* ขุนคลัง — service worker: เก็บไฟล์แอปไว้ในเครื่อง ให้เปิดได้แม้ไม่มีเน็ต
  * เปลี่ยน VERSION ทุกครั้งที่อัปเดตไฟล์แอป */
-var VERSION = 'kk-v17';
-var SHELL = ['./', 'index.html', 'styles.css', 'seed.js', 'core.js', 'mock-api.js', 'api.js', 'importer.js', 'accounts.js', 'app.js',
+var VERSION = 'kk-v18';
+var SHELL = ['./', 'index.html', 'styles.css', 'seed.js', 'core.js', 'mock-api.js', 'api.js', 'attach.js', 'export.js', 'importer.js',
+  'accounts.js', 'app.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', function (e) {

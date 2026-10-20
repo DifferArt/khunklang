@@ -21,7 +21,7 @@ function ApiError(message, network) {
 var Api = {
   // คำสั่งที่ส่งซ้ำได้โดยไม่เกิดข้อมูลซ้ำ (addAccount ส่งซ้ำแล้วจะได้บัญชีซ้ำ จึงไม่อยู่ในนี้)
   RETRYABLE: ['ping', 'bootstrap', 'listTx', 'saveTx', 'deleteTx', 'saveSettings', 'saveTxBatch', 'saveRules',
-    'updateAccounts', 'saveCategories'],
+    'updateAccounts', 'saveCategories', 'uploadFile', 'listFiles', 'getFile', 'deleteFile'],
 
   call: function (action, payload) {
     var cfg = Config.get();

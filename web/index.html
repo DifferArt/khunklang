@@ -33,6 +33,8 @@
         <div class="hint" id="sumTransfer"></div>
       </div>
 
+      <button type="button" class="btn import-btn" data-export>📤 ส่งบัญชี (สรุปเดือน + สลิป + Statement)</button>
+
       <h2 class="sec">บันทึกด่วน</h2>
       <div id="favGrid" class="fav-grid"></div>
 
@@ -75,6 +77,7 @@
         <div class="hint" id="nwHint"></div>
       </div>
       <button type="button" class="btn import-btn" data-import>📥 นำเข้า Statement ธนาคาร (PDF)</button>
+      <button type="button" class="btn import-btn" data-export>📤 ส่งบัญชี</button>
       <div id="accGroups"></div>
     </section>
 
@@ -87,6 +90,17 @@
       </div>
       <p class="imp-status" id="impStatus" hidden></p>
       <div id="impBody"></div>
+    </section>
+
+    <!-- ส่งบัญชี -->
+    <section id="view-export" class="view" hidden>
+      <div class="month-nav">
+        <button id="expPrev" class="icon-btn" type="button" aria-label="เดือนก่อน">‹</button>
+        <div class="month-title"><span id="expMonth"></span><small class="hint" style="display:block;margin:0">📤 ส่งบัญชี</small></div>
+        <button id="expNext" class="icon-btn" type="button" aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div id="expBody"></div>
+      <input id="expStFile" type="file" accept="application/pdf" hidden>
     </section>
 
     <!-- ตั้งค่า -->
@@ -115,7 +129,7 @@
         <p class="hint">ล้างข้อมูลโหมดทดลองแล้วเริ่มจากตัวอย่างใหม่</p>
         <div class="btn-row"><button id="demoReset" class="btn danger" type="button">ล้างข้อมูลทดลอง</button></div>
       </div>
-      <p class="hint center">ขุนคลัง เฟส 1 · แก้บัญชี/หมวด/ปุ่มลัดได้ใน Google Sheet</p>
+      <p class="hint center">ขุนคลัง เฟส 3 · แก้บัญชี/หมวด/ปุ่มลัดได้ใน Google Sheet</p>
     </section>
   </main>
 
@@ -167,6 +181,11 @@
       <label><span id="cpLabel">ชื่อผู้จ่าย / ผู้รับ (ไม่บังคับ)</span><input id="fCounterparty" type="text" list="cpList" placeholder="พิมพ์แล้วเลือกจากชื่อที่เคยใช้"></label>
       <datalist id="cpList"></datalist>
       <label>บันทึกช่วยจำ<input id="fNote" type="text" placeholder="เช่น รายละเอียดเพิ่มเติม"></label>
+      <div class="attach">
+        <span class="lbl">สลิป / ใบเสร็จ</span>
+        <div id="attList" class="att-list"></div>
+        <label class="btn file-btn att-add">📎 แนบรูป / PDF<input id="fFiles" type="file" accept="image/*,application/pdf" multiple hidden></label>
+      </div>
 
       <p class="form-error" id="formError" hidden></p>
       <div class="btn-row sticky">
@@ -201,12 +220,15 @@
     </form>
   </div>
 
+  <div id="viewer" class="viewer" hidden><img id="viewerImg" alt="ไฟล์แนบ"></div>
   <div id="toast" class="toast" hidden></div>
 
   <script src="seed.js"></script>
   <script src="core.js"></script>
   <script src="mock-api.js"></script>
   <script src="api.js"></script>
+  <script src="attach.js"></script>
+  <script src="export.js"></script>
   <script src="importer.js"></script>
   <script src="accounts.js"></script>
   <script src="app.js"></script>

@@ -272,3 +272,41 @@ input:focus, select:focus { outline: 2px solid var(--brand-2); outline-offset: 1
 .acc-hidden { margin-top: 14px; }
 .acc-hidden summary { font-size: 13px; color: var(--muted); cursor: pointer; padding: 6px 2px; }
 .acc-hidden .acc { opacity: .6; }
+
+/* ---------- ไฟล์แนบ ---------- */
+.attach .lbl, #view-export .lbl { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.attach { margin: 10px 0; }
+.att-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.att-list:empty { display: none; }
+.att {
+  position: relative; width: 92px; display: flex; flex-direction: column; gap: 4px; align-items: stretch;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px;
+}
+.att.new { border-style: dashed; }
+.att-pic { width: 100%; height: 92px; border: 0; padding: 0; border-radius: 7px; background: var(--surface-2); overflow: hidden; cursor: pointer; display: grid; place-items: center; }
+.att-pic img { width: 100%; height: 100%; object-fit: cover; }
+.att-ico { font-size: 30px; }
+.att small { font-size: 11px; color: var(--muted); text-align: center; }
+.att select { margin: 0; padding: 2px 4px; font-size: 12px; border-radius: 6px; }
+.att-rm {
+  position: absolute; top: -7px; right: -7px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); font-size: 12px; cursor: pointer; line-height: 1;
+}
+label.att-add { display: inline-block; margin: 0; color: var(--text); font-size: 14px; padding: 8px 14px; }
+.clip { font-size: 12px; }
+.viewer { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, .85); display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+.viewer[hidden] { display: none; }
+.viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+/* ---------- ส่งบัญชี ---------- */
+.exp-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.exp-row:last-child { border-bottom: 0; }
+.exp-row > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-row b { font-variant-numeric: tabular-nums; }
+.exp-ok { font-size: 13px; white-space: nowrap; }
+.chip.warn { color: var(--neg); border-color: var(--neg); }
+.exp-link {
+  display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); text-decoration: none; background: var(--surface-2); font-size: 14px;
+}
+.exp-link:first-of-type { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }

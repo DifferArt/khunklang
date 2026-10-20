@@ -69,6 +69,16 @@ var MockApi = {
   handle: function (action, p) {
     var db = this.load();
     if (!db.rules) db.rules = this.fresh().rules; // ข้อมูลทดลองจากรุ่นก่อน
+    if (!db.files) db.files = [];
+    var self = this;
+    var activeFiles = function () { return db.files.filter(function (f) { return !f.deleted; }); };
+    var slipRef = function (txId) {
+      return activeFiles().filter(function (f) { return f.tx_id === txId && f.kind !== 'statement'; })
+        .map(function (f) { return f.id; }).join(',');
+    };
+    var syncSlipRef = function (txId) {
+      db.txs.forEach(function (t) { if (t.id === txId) t.slip_ref = slipRef(txId); });
+    };
     var month = function (m) {
       return KK.sortTxDesc(db.txs.filter(function (t) {
         return !KK.isDeleted(t) && (!m || t.date.indexOf(m) === 0);
@@ -94,6 +104,7 @@ var MockApi = {
         var i = db.txs.findIndex(function (x) { return x.id === tx.id; });
         tx.created_at = i >= 0 ? db.txs[i].created_at : (tx.created_at || now);
         tx.updated_at = now;
+        tx.slip_ref = slipRef(tx.id);
         if (i >= 0) db.txs[i] = tx; else db.txs.push(tx);
         this.store(db);
         return { tx: tx, balances: balances() };
@@ -171,6 +182,45 @@ var MockApi = {
         Object.assign(db.settings, p.settings || {});
         this.store(db);
         return { settings: db.settings };
+      case 'uploadFile': {
+        var input = p.file || {};
+        if (!input.id || !input.data) throw new Error('ไม่มีข้อมูลไฟล์');
+        var dup = activeFiles().find(function (f) { return f.id === input.id; });
+        if (dup) return { file: dup, duplicate: true };
+        var size = Math.round(input.data.length * 3 / 4);
+        var row = {
+          id: input.id, tx_id: input.tx_id || '', kind: input.kind, account_id: input.account_id || '',
+          date_from: input.date_from, date_to: input.date_to || input.date_from, name: input.name, mime: input.mime,
+          drive_id: '', size: size, created_at: new Date().toISOString(), deleted: false,
+          // เก็บเนื้อไฟล์เฉพาะไฟล์เล็ก กันพื้นที่ในเบราว์เซอร์เต็ม
+          data: size < 400 * 1024 ? input.data : ''
+        };
+        db.files = db.files.filter(function (f) { return f.id !== row.id; }).concat([row]);
+        if (row.tx_id) syncSlipRef(row.tx_id);
+        self.store(db);
+        var out = Object.assign({}, row); delete out.data;
+        return { file: out };
+      }
+      case 'listFiles':
+        return {
+          files: activeFiles().filter(function (f) {
+            if (p.tx_id && f.tx_id !== p.tx_id) return false;
+            if (p.month && !(f.date_from.slice(0, 7) <= p.month && p.month <= f.date_to.slice(0, 7))) return false;
+            return true;
+          }).map(function (f) { var o = Object.assign({}, f); delete o.data; return o; })
+        };
+      case 'getFile': {
+        var file = activeFiles().find(function (f) { return f.id === p.id; });
+        if (!file) throw new Error('ไม่พบไฟล์');
+        if (!file.data) throw new Error('โหมดทดลองไม่ได้เก็บไฟล์ใหญ่ไว้');
+        return { file: file, mime: file.mime, data: file.data, url: 'data:' + file.mime + ';base64,' + file.data };
+      }
+      case 'deleteFile':
+        db.files.forEach(function (f) { if (f.id === p.id) { f.deleted = true; f.data = ''; if (f.tx_id) syncSlipRef(f.tx_id); } });
+        this.store(db);
+        return { id: p.id };
+      case 'exportMonth':
+        throw new Error('โหมดทดลองสร้างไฟล์ใน Google Drive ไม่ได้ — เชื่อม Google Sheet ก่อน');
       default: throw new Error('ไม่รู้จักคำสั่ง: ' + action);
     }
   }
